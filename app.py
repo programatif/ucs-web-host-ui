@@ -13,6 +13,7 @@ app.secret_key = "drftgyhujiokpiugyft4567789ij!!#e5"
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+
 # Initialize Extensions
 db.init_app(app)
 login_manager = LoginManager()
@@ -77,8 +78,6 @@ def index():
     
     # Create a lookup dictionary: {stack_name: domain}
     domain_map = {d.stack_name: d.domain for d in deployments}
-
-    
 
     containers = []
     user_id = current_user.id

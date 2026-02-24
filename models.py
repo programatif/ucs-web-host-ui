@@ -8,11 +8,9 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     full_name = db.Column(db.String(120), nullable=True)
-    password_hash = db.Column(db.String(200), nullable=False)
-    # Role-based access: "admin" or "user"
+    password_hash = db.Column(db.String(200), nullable=True)
     role = db.Column(db.String(20), default="user", nullable=False)
 
-    # Resource Limits for each user
     max_containers = db.Column(db.Integer, default=5)
     max_cpus = db.Column(db.Float, default=2.0)
     max_ram_mb = db.Column(db.Integer, default=1024)
