@@ -6,6 +6,7 @@ __Current features:__
 - container management
 - file management
 - file upload
+- file editor (with code editor and intellisense)
 - container logs
 - user resource limits (container count only)
 
