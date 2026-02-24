@@ -11,8 +11,10 @@ __Current features:__
 - container logs
 - user resource limits (container count only)
 
-__Still to add:__
+__Untested but maybe present:__
 - LDAP integration
+
+__Still to add:__
 - full user resource limits
 - UI Updates
 
