@@ -1,0 +1,91 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div class="max-w-3xl mx-auto py-10">
+    <div class="text-center mb-10">
+        <h1 class="text-4xl font-black mb-2">Launch New Instance</h1>
+        <p class="text-base-content/60">Deploy a pre-configured stack to your Swarm cluster in seconds.</p>
+    </div>
+
+    <div class="card bg-base-100 shadow-2xl border border-base-300">
+        <form action="/deploy" method="POST" class="card-body gap-6">
+
+            <div class="form-control w-full">
+                <label class="label font-bold text-sm uppercase text-primary">1. Select Application Template</label>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {% for t in templates %}
+                    <label
+                        class="label cursor-pointer p-4 border rounded-xl hover:bg-base-200 transition-all gap-4 has-[:checked]:border-primary has-[:checked]:bg-primary/5 text-primary">
+                        <input type="radio" name="template" value="{{ t }}" class="radio radio-outline-secondary"
+                            required />
+
+                        <span class="flex-1 font-medium ">
+                            {# 1. Remove .yml | 2. Replace hyphens with spaces | 3. Capitalize (optional but
+                            recommended) #}
+                            {{ t.replace('.yml', '').replace('-', ' ') | title }}
+                        </span>
+
+                        <i data-lucide="box" class="opacity-40"></i>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <label class="label font-bold text-sm uppercase text-primary">2. Instance Details</label>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="form-control">
+                    <label class="label"><span class="label-text font-semibold">Stack Name</span></label>
+                    <input type="text" name="stack_name" placeholder="production-api"
+                        class="input input-bordered focus:input-primary w-full" required />
+                </div>
+                <div class="form-control">
+                    <label class="label"><span class="label-text font-semibold">Base Domain</span></label>
+                    <select name="root_domain" class="select select-bordered focus:border-primary" required>
+                        <option disabled selected>Select a domain</option>
+                        {% for d in available_domains %}
+                        <option value="{{ d.domain_name }}">{{ d.domain_name }}</option>
+                        {% endfor %}
+                    </select>
+                    <label class="label">
+                        <span class="label-text-alt opacity-50">Subdomain will be generated automatically.</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="bg-base-200 p-6 rounded-2xl mt-4">
+                <label class="label font-bold text-sm uppercase opacity-60">3. Resource Allocation</label>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
+                    <div class="form-control">
+                        <label class="label"><span class="label-text">CPU Reservation (Cores)</span></label>
+                        <select name="cpus" class="select select-bordered">
+                            <option value="0.25">0.25 Cores</option>
+                            <option value="0.50" selected>0.50 Cores</option>
+                            <option value="1.0">1.0 Cores</option>
+                            <option value="2.0">2.0 Cores</option>
+                        </select>
+                    </div>
+                    <div class="form-control">
+                        <label class="label"><span class="label-text">Memory Limit (RAM)</span></label>
+                        <select name="ram" class="select select-bordered">
+                            <option value="256M">256 MB</option>
+                            <option value="512M" selected>512 MB</option>
+                            <option value="1G">1 GB</option>
+                            <option value="2G">2 GB</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-actions justify-end mt-6">
+                <a href="/" class="btn btn-ghost">Cancel</a>
+                <button type="submit" class="btn btn-primary px-10 rounded-full shadow-lg shadow-primary/30">
+                    Deploy Stack <i data-lucide="rocket" size="18"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

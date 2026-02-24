@@ -1,0 +1,23 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="flex justify-center items-center min-h-[70vh]">
+    <div class="card w-96 bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body">
+            <h2 class="card-title text-2xl font-black mb-4">Cluster Login</h2>
+            <form method="POST">
+                <div class="form-control w-full">
+                    <label class="label"><span class="label-text font-bold">Username</span></label>
+                    <input type="text" name="username" class="input input-bordered w-full" placeholder="Enter Username" required />
+                </div>
+                <div class="form-control w-full mt-4">
+                    <label class="label"><span class="label-text font-bold">Password</span></label>
+                    <input type="password" name="password" class="input input-bordered w-full" placeholder="Enter Password" required />
+                </div>
+                <div class="card-actions justify-end mt-6">
+                    <button type="submit" class="btn btn-primary btn-block">Sign In</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

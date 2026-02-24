@@ -1,0 +1,625 @@
+{% extends "layout.html" %}
+{% block content %}
+
+{% if current_user.role == 'admin' %}
+<div
+    class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 bg-base-100 p-6 rounded-3xl shadow-sm border border-base-300">
+    <div>
+        <h1 class="text-2xl font-black tracking-tight">Cluster Overview</h1>
+        <p class="text-sm opacity-50">Swarm Node: {{ stats.node_name if stats.node_name else 'Primary Manager' }}</p>
+    </div>
+    <div class="flex gap-2">
+        <button onclick="pruneSystem()" class="btn btn-outline btn-error btn-sm rounded-full px-4">
+            <i data-lucide="trash-2" size="14"></i> Prune System
+        </button>
+    </div>
+</div>
+
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+    <div class="card bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-sm uppercase font-bold opacity-60">CPU Usage</p>
+                    <h2 class="text-4xl font-black" id="cpu-val">--%</h2>
+                </div>
+                <div class="p-3 bg-primary/10 text-primary rounded-xl"><i data-lucide="cpu"></i></div>
+            </div>
+            <progress id="cpu-bar" class="progress progress-accent w-full mt-4" value="0" max="100"></progress>
+        </div>
+    </div>
+
+    <div class="card bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-sm uppercase font-bold opacity-60">Memory (RAM)</p>
+                    <h2 class="text-3xl font-black" id="ram-val">-- / -- GB</h2>
+                </div>
+                <div class="p-3 bg-secondary/10 text-secondary rounded-xl"><i data-lucide="database"></i></div>
+            </div>
+            <p class="text-xs opacity-50 mt-2" id="ram-percent">0% utilized</p>
+            <progress id="ram-bar" class="progress progress-accent w-full mt-1" value="0" max="100"></progress>
+        </div>
+    </div>
+
+    <div class="card bg-base-100 shadow-xl border border-base-300">
+        <div class="card-body">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-sm uppercase font-bold opacity-60">Disk Space</p>
+                    <h2 class="text-4xl font-black">{{ stats.disk }}%</h2>
+                </div>
+                <div class="p-3 bg-accent/10 text-accent rounded-xl"><i data-lucide="hard-drive"></i></div>
+            </div>
+            <progress class="progress progress-accent w-full mt-4" value="{{ stats.disk }}" max="100"></progress>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="bg-base-100 rounded-3xl shadow-sm border border-base-300 overflow-hidden">
+    <div class="p-6 flex justify-between items-center border-b border-base-200">
+        <h3 class="font-bold text-lg">Active Services</h3>
+        <span class="badge badge-neutral p-3">{{ containers|length }}/{{ max_containers }} Deployments</span>
+    </div>
+    <table class="table w-full">
+        <thead>
+            <tr class="bg-base-200 text-sm uppercase opacity-70">
+                <th>Stack / Service</th>
+                <th>Image</th>
+                <th>Status</th>
+                <th>Storage</th>
+                <th class="text-right px-8">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in containers %}
+            <tr class="hover group">
+                <td>
+                    <div class="flex items-center gap-3">
+                        <div class="avatar placeholder">
+                            <div class="bg-neutral text-neutral-content rounded-lg w-10">
+                                <span class="text-xs font-bold">{{ s.stack_name[:2] | upper if s.stack_name else 'ST'
+                                    }}</span>
+                            </div>
+                        </div>
+                        <div>
+                            {% if s.custom_domain %}
+                            <a href="http://{{ s.custom_domain }}" target="_blank"
+                                class="font-bold hover:text-primary transition-colors flex items-center gap-1">
+                                {{ s.name }} <i data-lucide="external-link" size="12" class="opacity-50"></i>
+                            </a>
+                            {% else %}
+                            <div class="font-bold">{{ s.name }}</div>
+                            {% endif %}
+                            <div class="text-xs opacity-40">Namespace: {{ s.stack_name }}</div>
+                        </div>
+                    </div>
+                </td>
+                <td><code class="text-xs opacity-70 bg-base-200 px-2 py-1 rounded">{{ s.image.split('@')[0] }}</code>
+                </td>
+                <td>
+                    <div class="flex flex-col gap-1">
+                        <div style="display: none;"
+                            class="badge {% if s.replicas > 0 %}badge-success{% else %}badge-ghost opacity-50{% endif %} badge-sm">
+                            {{ s.replicas }} Nodes
+                        </div>
+                        {% if s.replicas > 0 %}
+                        <span class="text-[10px] text-success font-bold">ONLINE</span>
+                        {% else %}
+                        <span class="text-[10px] text-error font-bold">OFFLINE</span>
+                        {% endif %}
+                    </div>
+                </td>
+                <td>
+                    <div class="flex gap-2">
+                        <button onclick="openFileManager('{{s.stack_name}}')"
+                            class="btn btn-ghost btn-xs gap-2 text-primary hover:bg-primary/10">
+                            <i data-lucide="folder" size="14"></i> Files
+                        </button>
+                        <button onclick="viewLogs('{{s.stack_name}}', '{{s.name}}')"
+                            class="btn btn-ghost btn-xs gap-2 text-info hover:bg-info/10">
+                            <i data-lucide="terminal" size="14"></i> Logs
+                        </button>
+                    </div>
+                </td>
+                <td class="text-right px-8">
+                    <div class="join border border-base-300 shadow-sm bg-base-100">
+                        {% if s.replicas > 0 %}
+                        <button onclick="serviceAction('{{s.id}}', 'stop')"
+                            class="btn btn-ghost btn-sm join-item text-warning tooltip" data-tip="Stop Service">
+                            <i data-lucide="square" size="16"></i>
+                        </button>
+                        {% else %}
+                        <button onclick="serviceAction('{{s.id}}', 'start')"
+                            class="btn btn-ghost btn-sm join-item text-success tooltip" data-tip="Start Service">
+                            <i data-lucide="play" size="16"></i>
+                        </button>
+                        {% endif %}
+
+                        <button onclick="serviceAction('{{s.id}}', 'restart')"
+                            class="btn btn-ghost btn-sm join-item text-info tooltip" data-tip="Rolling Restart">
+                            <i data-lucide="refresh-cw" size="16"></i>
+                        </button>
+
+                        <button onclick="removeStack('{{s.stack_name}}')"
+                            class="btn btn-ghost btn-sm join-item text-error hover:bg-error hover:text-white tooltip"
+                            data-tip="Remove Stack">
+                            <i data-lucide="trash-2" size="16"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<dialog id="file_modal" class="modal modal-bottom sm:modal-middle">
+    <div
+        class="modal-box w-11/12 max-w-7xl h-[85vh] flex flex-col p-0 overflow-hidden rounded-3xl border border-base-300">
+        <div class="bg-base-200 p-4 flex justify-between items-center border-b border-base-300">
+            <div class="flex items-center gap-4">
+                <h3 class="font-black text-lg flex items-center gap-2">
+                    <i data-lucide="folder-tree" class="text-primary"></i>
+                    <span id="modal-stack-name" class="opacity-70"></span>
+                    <p id="current-path-display" class="text-xs font-mono opacity-50 mb-2"></p>
+                </h3>
+                <div class="badge badge-outline badge-sm" id="editor-lang">Plain Text</div>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="saveFile()" class="btn btn-primary btn-sm rounded-lg shadow-lg shadow-primary/20">
+                    <i data-lucide="save" size="14"></i> Save
+                </button>
+                <button class="btn btn-circle btn-ghost btn-sm" onclick="file_modal.close()">✕</button>
+            </div>
+        </div>
+
+        <div class="flex flex-1 overflow-hidden bg-base-100">
+            <div class="w-80 bg-base-100 border-r border-base-300 flex flex-col">
+                <div class="p-4 space-y-3">
+                    <div class="flex gap-2">
+                        <button onclick="createNewFile()" class="btn btn-neutral btn-sm flex-1 gap-2">
+                            <i data-lucide="file-plus" size="14"></i>Add File
+                        </button>
+                        <button onclick="createNewFolder()"
+                            class="btn btn-neutral btn-sm join-item border-l border-base-100/20 ">
+                            <i data-lucide="folder-plus" size="14"></i>
+                        </button>
+                        <div class="dropdown dropdown-bottom dropdown-end">
+                            <div tabindex="0" role="button" class="btn btn-outline btn-sm gap-2">
+                                <i data-lucide="upload-cloud" size="14"></i>
+                            </div>
+                            <ul tabindex="0"
+                                class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52 border border-base-300">
+                                <li><a onclick="document.getElementById('bulk-file-input').click()">Files (Bulk)</a>
+                                </li>
+                                <li><a onclick="document.getElementById('zip-file-input').click()">ZIP Archive
+                                        (Extract)</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <input type="file" id="bulk-file-input" class="hidden" multiple onchange="uploadFilesBulk(this)">
+                    <input type="file" id="zip-file-input" class="hidden" accept=".zip" onchange="uploadZip(this)">
+                </div>
+
+                <div
+                    class="text-[10px] font-bold opacity-40 uppercase tracking-widest px-4 pb-2 border-b border-base-200">
+                    Explorer</div>
+                <div class="flex-1 overflow-y-auto p-2" id="file-list">
+                </div>
+            </div>
+
+            <div class="flex-1 flex flex-col bg-[#1e1e1e]">
+                <div id="monaco-container" class="flex-1 w-full"></div>
+                <div class="bg-base-300 px-4 py-2 flex justify-between items-center text-[11px] font-mono">
+                    <span id="current-filename" class="opacity-60">No file selected</span>
+                    <span class="opacity-40">UTF-8</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</dialog>
+
+<dialog id="log_modal" class="modal">
+    <div
+        class="modal-box w-11/12 max-w-4xl h-[70vh] flex flex-col p-0 overflow-hidden rounded-3xl border border-base-300">
+        <div class="bg-base-200 p-4 flex justify-between items-center border-b border-base-300">
+            <h3 class="font-black text-lg flex items-center gap-2">
+                <i data-lucide="terminal" class="text-info"></i>
+                <span id="log-service-name" class="opacity-70">Service Logs</span>
+            </h3>
+            <div class="flex gap-2">
+                <button onclick="refreshCurrentLogs()" class="btn btn-ghost btn-sm">
+                    <i data-lucide="refresh-cw" size="14"></i> Refresh
+                </button>
+                <button class="btn btn-circle btn-ghost btn-sm" onclick="log_modal.close()">✕</button>
+            </div>
+        </div>
+        <div class="flex-1 bg-[#0d1117] p-4 overflow-y-auto font-mono text-xs text-slate-300 whitespace-pre-wrap"
+            id="log-content">
+            Loading logs...
+        </div>
+    </div>
+</dialog>
+
+<script>
+    let currentStack = '';
+    let currentFile = '';
+
+    // Live Stats Polling
+    function updateStats() {
+        fetch('/api/live-stats')
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('cpu-val').innerText = data.cpu_usage + '%';
+                document.getElementById('cpu-bar').value = data.cpu_usage;
+                const usedGB = (data.memory.used / (1024 ** 3)).toFixed(2);
+                const totalGB = (data.memory.total / (1024 ** 3)).toFixed(2);
+                document.getElementById('ram-val').innerText = `${usedGB} / ${totalGB} GB`;
+                document.getElementById('ram-bar').value = data.memory.percent;
+                document.getElementById('ram-percent').innerText = `${data.memory.percent}% utilized`;
+            });
+    }
+
+    {% if current_user.role == 'admin' %}
+    setInterval(updateStats, 2000);
+    updateStats();
+    {% endif %}
+
+    // Service Management
+    function serviceAction(serviceId, action) {
+        const btn = event.currentTarget;
+        btn.classList.add('loading');
+        fetch(`/api/manage/${serviceId}/${action}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+            .then(res => res.json())
+            .then(data => data.error ? alert(data.error) : location.reload())
+            .finally(() => btn.classList.remove('loading'));
+    }
+
+    // Stack Removal
+    function removeStack(stackName) {
+        if (confirm(`CAUTION: Permanently delete stack "${stackName}" and all associated data?`)) {
+            fetch(`/api/remove/${stackName}`, { method: 'DELETE' })
+                .then(res => res.json())
+                .then(data => data.error ? alert(data.error) : location.reload());
+        }
+    }
+
+    // System Prune
+    function pruneSystem() {
+        if (confirm("Cleanup unused images and networks? This cannot be undone.")) {
+            fetch('/api/system/prune', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => alert(`Success! Reclaimed: ${(data.reclaimed_space_bytes / 1024 / 1024).toFixed(2)} MB`));
+        }
+    }
+
+    let editor = null;
+
+    require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
+    require(['vs/editor/editor.main'], function () {
+        monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+            noSemanticValidation: false,
+            noSyntaxValidation: false,
+        });
+
+        monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
+            target: monaco.languages.typescript.ScriptTarget.ESNext,
+            allowNonTsExtensions: true,
+            checkJs: true,
+            lib: ['esnext', 'dom']
+        });
+
+        monaco.languages.css.cssDefaults.setDiagnosticsOptions({
+            validate: true
+        });
+
+        monaco.languages.html.htmlDefaults.setOptions({
+            suggest: { html5: true }
+        });
+
+        editor = monaco.editor.create(document.getElementById('monaco-container'), {
+            value: '',
+            language: 'plaintext',
+            theme: 'vs-dark',
+            automaticLayout: true,
+            fontSize: 13,
+            minimap: { enabled: false },
+            padding: { top: 20 },
+
+            quickSuggestions: { other: true, comments: true, strings: true },
+            suggestOnTriggerCharacters: true,
+            parameterHints: { enabled: true },
+            formatOnPaste: true,
+            formatOnType: true,
+            folding: true,
+            bracketPairColorization: { enabled: true },
+            autoClosingBrackets: 'always',
+            autoClosingQuotes: 'always',
+            autoClosingTags: true,
+            colorDecorators: true
+        });
+    });
+
+    let currentDirectory = ""; // Tracks where we are, e.g., "testing/"
+    let allFiles = []; // Stores the flat list from the API
+
+    function openFileManager(stack) {
+        currentStack = stack;
+        currentDirectory = ""; // Reset to root
+        refreshFileList();
+        file_modal.showModal();
+    }
+
+    function refreshFileList() {
+        fetch(`/api/files/${currentStack}/list`)
+            .then(r => r.json())
+            .then(data => {
+                allFiles = data.files;
+                renderTree();
+            });
+    }
+
+    function renderTree() {
+        const list = document.getElementById('file-list');
+        const displayItems = new Set();
+
+        // UI: Add a "Back" button if we are in a subdirectory
+        let html = "";
+        if (currentDirectory !== "") {
+            html += `
+            <button onclick="goBack()" class="flex items-center gap-2 p-2 w-full text-sm font-bold text-primary hover:bg-base-200 rounded-lg mb-2">
+                <i data-lucide="chevron-left" size="14"></i> .. / (Back)
+            </button>
+        `;
+        }
+
+        allFiles.forEach(fullPath => {
+            // Only look at files that start with our current directory
+            if (fullPath.startsWith(currentDirectory)) {
+                const relativePath = fullPath.slice(currentDirectory.length);
+                const parts = relativePath.split('/');
+
+                if (parts.length > 1) {
+                    // It's a directory inside our current location
+                    displayItems.add(parts[0] + "/");
+                } else if (parts[0] !== "") {
+                    // It's a file inside our current location
+                    displayItems.add(parts[0]);
+                }
+            }
+        });
+
+        html += Array.from(displayItems).sort().map(item => {
+            const isDir = item.endsWith('/');
+            const icon = isDir ? 'folder' : 'file-code';
+            const name = isDir ? item.slice(0, -1) : item;
+            const fullItemPath = currentDirectory + item;
+
+            return `
+            <div class="group flex items-center justify-between p-1 rounded-lg hover:bg-primary/10 transition-colors">
+                <button onclick="${isDir ? `navigateTo('${fullItemPath}')` : `loadFile('${fullItemPath}')`}" 
+                        class="flex items-center gap-2 text-sm truncate flex-1 text-left px-2 py-1">
+                    <i data-lucide="${icon}" size="14" class="${isDir ? 'text-warning' : 'opacity-50'}"></i> 
+                    <span class="truncate">${name}</span>
+                </button>
+                <div class="hidden group-hover:flex gap-1 pr-1">
+                    <button onclick="deleteFile('${fullItemPath}')" class="btn btn-ghost btn-xs text-error px-1"><i data-lucide="trash" size="12"></i></button>
+                </div>
+            </div>
+        `;
+        }).join('');
+
+        list.innerHTML = html;
+        document.getElementById('current-path-display').innerText = currentStack + ":/" + currentDirectory;
+        lucide.createIcons();
+    }
+
+    function navigateTo(path) {
+        currentDirectory = path;
+        renderTree();
+    }
+
+    function goBack() {
+        const parts = currentDirectory.split('/').filter(p => p !== "");
+        parts.pop();
+        currentDirectory = parts.length > 0 ? parts.join('/') + "/" : "";
+        renderTree();
+    }
+
+    function uploadZip(input) {
+        if (!input.files.length) return;
+        const formData = new FormData();
+        formData.append('file', input.files[0]);
+
+        // Show loading state if desired
+        fetch(`/api/files/${currentStack}/upload-zip`, {
+            method: 'POST',
+            body: formData
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    refreshFileList();
+                    alert("Archive extracted successfully!");
+                } else {
+                    alert("Error: " + (data.error || data.message));
+                }
+                input.value = '';
+            });
+    }
+
+    function select(btn) {
+        let parent = btn.parentElement;
+        document.querySelectorAll(".primary-selected").forEach(e => {
+            e.classList.remove("primary-selected");
+        });
+
+        parent.classList.add("primary-selected");
+    }
+
+    function loadFile(filename) {
+        currentFile = filename;
+        document.getElementById('current-filename').innerText = filename;
+
+        const ext = filename.split('.').pop();
+        const langMap = { 'js': 'javascript', 'py': 'python', 'html': 'html', 'css': 'css', 'json': 'json', 'yml': 'yaml', 'ts': 'typescript' };
+        const mode = langMap[ext] || 'plaintext';
+        document.getElementById('editor-lang').innerText = mode.toUpperCase();
+
+        fetch(`/api/files/${currentStack}/read?filename=${filename}`)
+            .then(r => r.text())
+            .then(content => {
+                editor.setValue(content);
+                monaco.editor.setModelLanguage(editor.getModel(), mode);
+                emmetMonaco.emmetHTML(monaco);
+                emmetMonaco.emmetCSS(monaco);
+            });
+    }
+
+    function saveFile() {
+        if (!currentFile) return;
+        const content = editor.getValue();
+        fetch(`/api/files/${currentStack}/edit`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: currentFile, content: content })
+        }).then(() => {
+            // Visual feedback
+            const saveBtn = document.querySelector('button[onclick="saveFile()"]');
+            saveBtn.classList.replace('btn-primary', 'btn-success');
+            setTimeout(() => saveBtn.classList.replace('btn-success', 'btn-primary'), 2000);
+        });
+    }
+
+    function deleteFile(filename) {
+        if (!confirm(`Delete ${filename}?`)) return;
+        fetch(`/api/files/${currentStack}/manage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'delete', target: filename })
+        }).then(() => refreshFileList());
+    }
+
+    function renameFile(filename) {
+        const newName = prompt("Rename to:", filename);
+        if (!newName || newName === filename) return;
+        fetch(`/api/files/${currentStack}/manage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'rename', target: filename, new_name: newName })
+        }).then(() => refreshFileList());
+    }
+
+    function uploadFilesBulk(input) {
+        if (!input.files.length) return;
+        const formData = new FormData();
+        Array.from(input.files).forEach(f => formData.append('files[]', f));
+
+        fetch(`/api/files/${currentStack}/upload-bulk`, {
+            method: 'POST',
+            body: formData
+        }).then(() => {
+            refreshFileList();
+            input.value = '';
+        });
+    }
+
+    function createNewFile() {
+        // Allows users to enter "testing/newfile.txt"
+        const usr_filePath = prompt("Enter filename (can include path, e.g., folder/file.txt):");
+        if (!usr_filePath) return;
+
+        var filePath = ""
+
+        if (currentDirectory != "") {
+            filePath += currentDirectory
+        }
+
+        filePath += usr_filePath
+
+        fetch(`/api/files/${currentStack}/create`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: filePath }) // This is now a path + filename
+        })
+            .then(response => {
+                if (!response.ok) throw new Error("Failed to create file");
+                refreshFileList();
+            })
+            .catch(err => alert(err.message));
+    }
+
+    let logState = { stack: '', service: '' };
+
+    function viewLogs(stack, service) {
+        logState = { stack, service };
+        document.getElementById('log-service-name').innerText = service;
+        document.getElementById('log-content').innerText = 'Streaming logs...';
+        log_modal.showModal();
+        refreshCurrentLogs();
+    }
+
+    function refreshCurrentLogs() {
+        const logBox = document.getElementById('log-content');
+        console.log(logState.stack)
+        fetch(`/api/logs/${logState.stack}/${logState.service}`)
+            .then(res => res.json())
+            .then(data => {
+                logBox.innerText = data.logs;
+                // Auto-scroll to bottom
+                logBox.scrollTop = logBox.scrollHeight;
+            })
+            .catch(err => logBox.innerText = "Failed to load logs: " + err);
+    }
+
+    // function createNewFolder() {
+    //     const folderName = prompt("Enter folder name (e.g. 'images' or 'css/themes'):");
+    //     if (!folderName) return;
+
+    //     fetch(`/api/files/${currentStack}/mkdir`, {
+    //         method: 'POST',
+    //         headers: { 'Content-Type': 'application/json' },
+    //         body: JSON.stringify({ directory_name: folderName })
+    //     })
+    //         .then(res => res.json())
+    //         .then(data => {
+    //             if (data.error) {
+    //                 alert("Error: " + data.error);
+    //             } else {
+    //                 refreshFileList();
+    //             }
+    //         });
+    // }
+    function createNewFolder() {
+        var name = prompt("Enter folder name:");
+        if (!name) return;
+        var filePath = ""
+
+        if (currentDirectory != "") {
+            filePath += currentDirectory
+        }
+
+        filePath += name += "/"
+
+        fetch(`/api/files/${currentStack}/create`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: filePath }) // This is now a path + filename
+        })
+            .then(response => {
+                if (!response.ok) throw new Error("Failed to create file");
+                refreshFileList();
+            })
+            .catch(err => alert(err.message));
+
+    }
+</script>
+
+{% endblock %}

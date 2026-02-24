@@ -1,0 +1,42 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <h1 class="text-2xl font-black mb-5">Manage Global Domains</h1>
+    <div class="card mb-6 bg-secondary rounded-2xl border p-3 card-info">
+        <p class="text font-black">If you are setting up a domain, make sure there is a wildcard subdomain A record pointed to:</p>
+        <ul class="list mx-3">
+            <li>- <code>{{ ips.local_ip }} (local)</code></li>
+            <li><b>or</b></li>
+            <li>- <code>{{ ips.public_ip }} (public)</code></li>
+        </ul>
+    </div>
+
+    <form action="/admin/domains/add" method="POST" class="flex gap-2 mb-8">
+        <input type="text" name="domain_name" placeholder="example.com" class="input input-bordered flex-1" required>
+        <button type="submit" class="btn btn-primary">Add Domain</button>
+    </form>
+
+    <div class="bg-base-100 rounded-2xl border border-base-300 overflow-hidden">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Root Domain</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in domains %}
+                <tr>
+                    <td>{{ d.domain_name }}</td>
+                    <td>
+                        <form action="{{ url_for('delete_domain', domain_id=d.id) }}" method="POST">
+                            <button class="btn btn-ghost btn-xs text-error">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,78 @@
+:root {
+    --color-accent: #AD1E3E;
+}
+
+@font-face {
+    font-family: Intro SB;
+    src: url("../static/introSemiBold.woff2");
+}
+
+* {
+    font-family: Intro SB;
+}
+
+.text-primary {
+    color: #AD1E3E;
+}
+
+.text-secondary {
+    color: #cfc285;
+}
+
+[class*="primary"]:not([class*="text"]):not(input):not([class*="hover"]):not(select) {
+    background-color: #AD1E3E;
+    border-color: #AD1E3E;
+    color: #cfc285;
+}
+
+select::selection {
+    border-color: #AD1E3E;
+}
+
+[class*="bg-primary"]:has([class*="hover"]):hover {
+    background-color: #AD1E3E;
+    color: #cfc285;
+    border-color: #AD1E3E;
+}
+
+.primary-selected{
+    background-color: #AD1E3E;
+    border-color: #AD1E3E;
+    color: #cfc285;
+}
+
+.bg-primary {
+    background-color: #AD1E3E;
+    border-color: #AD1E3E;
+    color: #cfc285;
+}
+
+[class*="secondary"]:not([class*="text"]):not(.radio) {
+    background-color: #cfc285;
+    border-color: #cfc285;
+    color: #AD1E3E;
+}
+
+.radio-outline-secondary {
+    background-color: transparent;
+    border-color: #AD1E3E;
+    color: #cfc285;
+}
+
+.progress-accent::-webkit-progress-value {
+    background-color: #AD1E3E;
+}
+
+.progress-accent::-moz-progress-bar {
+    background-color: #AD1E3E;
+}
+
+.progress-accent {
+    color: #AD1E3E;
+}
+
+.glass-card {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}

@@ -1,0 +1,230 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div
+    class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 bg-base-100 p-6 rounded-3xl shadow-sm border border-base-300">
+    <div>
+        <h1 class="text-2xl font-black tracking-tight">User Management</h1>
+        <p class="text-sm opacity-50">Manage cluster access and resource quotas</p>
+    </div>
+    <div>
+        <button onclick="user_modal.showModal()" class="btn btn-primary rounded-full px-6">
+            <i data-lucide="user-plus" size="18"></i> Create New User
+        </button>
+    </div>
+</div>
+
+<div class="card bg-base-100 shadow-xl border border-base-300">
+    <div class="overflow-x-auto">
+        <table class="table table-zebra">
+            <thead>
+                <tr class="text-xs uppercase opacity-60">
+                    <th>User</th>
+                    <th>Role</th>
+                    <th>Container Limit</th>
+                    <th>CPU Limit</th>
+                    <th>RAM Limit</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>
+                        <div class="flex items-center gap-3">
+                            <div class="avatar placeholder">
+                                <div class="bg-neutral text-neutral-content rounded-full w-8">
+                                    <span>{{ user.username[0] | upper }}</span>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="font-bold">{{ user.username }}</div>
+                                <div class="text-xs opacity-50">{{ user.full_name or 'No Name Set' }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="badge {{ 'badge-secondary' if user.role == 'admin' else 'badge-ghost' }} badge-sm">
+                            {{ user.role }}
+                        </span>
+                    </td>
+                    <td class="font-mono text-sm">{{ user.max_containers }}</td>
+                    <td class="font-mono text-sm">{{ user.max_cpus }} Cores</td>
+                    <td class="font-mono text-sm">{{ user.max_ram_mb }} MB</td>
+                    <td class="flex gap-2">
+                        <button
+                            onclick="openEditModal({{ user.id }}, '{{ user.username }}', '{{ user.full_name or '' }}', {{ user.max_containers }}, {{ user.max_cpus }}, {{ user.max_ram_mb }})"
+                            class="btn btn-ghost btn-xs text-info">
+                            <i data-lucide="edit-3" size="14"></i>
+                        </button>
+
+                        <button onclick="confirmDelete({{ user.id }}, '{{ user.username }}')"
+                            class="btn btn-ghost btn-xs text-error">
+                            <i data-lucide="trash-2" size="14"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<dialog id="user_modal" class="modal">
+    <div class="modal-box max-w-md">
+        <h3 class="font-black text-lg mb-4">Create New User</h3>
+        <form action="{{ url_for('create_user') }}" method="POST" class="space-y-4">
+
+            <div class="form-control">
+                <label class="label"><span class="label-text font-bold">Username</span></label>
+                <input type="text" name="username" class="input input-bordered" placeholder="john_doe" required>
+            </div>
+
+            <div class="form-control">
+                <label class="label"><span class="label-text font-bold">Password</span></label>
+                <input type="password" name="password" class="input input-bordered" required>
+            </div>
+
+            <div class="divider text-xs opacity-40 uppercase">Resource Quotas</div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div class="form-control">
+                    <label class="label"><span class="label-text">Max Containers</span></label>
+                    <input type="number" name="max_containers" class="input input-bordered" value="5" required>
+                </div>
+                <div class="form-control" style="display: none;">
+                    <label class="label"><span class="label-text">Max CPUs</span></label>
+                    <input type="number" step="0.1" name="max_cpus" class="input input-bordered" value="1.0" required>
+                </div>
+            </div>
+
+            <div class="form-control" style="display: none;">
+                <label class="label"><span class="label-text">Max RAM (MB)</span></label>
+                <select name="max_ram_mb" class="select select-bordered w-full">
+                    <option value="256">256 MB</option>
+                    <option value="512" selected>512 MB</option>
+                    <option value="1024">1024 MB (1GB)</option>
+                    <option value="2048">2048 MB (2GB)</option>
+                    <option value="4096">4096 MB (4GB)</option>
+                </select>
+            </div>
+
+            <div class="modal-action">
+                <button type="button" onclick="user_modal.close()" class="btn btn-ghost">Cancel</button>
+                <button type="submit" class="btn btn-primary px-8">Create User</button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
+<dialog id="edit_user_modal" class="modal">
+    <div class="modal-box max-w-md">
+        <h3 class="font-black text-lg mb-4 text-primary">Edit User: <span id="edit_display_username"></span></h3>
+        <form id="edit_user_form" method="POST" class="space-y-4">
+
+            <div class="form-control">
+                <label class="label"><span class="label-text font-bold">Username</span></label>
+                <input type="text" name="username" id="edit_username" class="input input-bordered">
+            </div>
+
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text font-bold">New Password</span>
+                    <span class="label-text-alt opacity-50">Leave blank to keep current</span>
+                </label>
+                <input type="password" name="password" class="input input-bordered" placeholder="••••••••">
+            </div>
+
+            <div class="divider text-xs opacity-40 uppercase">Update Quotas</div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div class="form-control">
+                    <label class="label"><span class="label-text">Max Containers</span></label>
+                    <input type="number" name="max_containers" id="edit_max_containers" class="input input-bordered"
+                        required>
+                </div>
+                <div class="form-control" style="display: none;">
+                    <label class="label"><span class="label-text">Max CPUs</span></label>
+                    <input type="number" step="0.1" name="max_cpus" id="edit_max_cpus" class="input input-bordered"
+                        required>
+                </div>
+            </div>
+
+            <div class="form-control" style="display: none;">
+                <label class="label"><span class="label-text">Max RAM (MB)</span></label>
+                <select name="max_ram_mb" id="edit_max_ram" class="select select-bordered w-full">
+                    <option value="256">256 MB</option>
+                    <option value="512">512 MB</option>
+                    <option value="1024">1024 MB (1GB)</option>
+                    <option value="2048">2048 MB (2GB)</option>
+                    <option value="4096">4096 MB (4GB)</option>
+                </select>
+            </div>
+
+            <div class="modal-action">
+                <button type="button" onclick="edit_user_modal.close()" class="btn btn-ghost">Cancel</button>
+                <button type="submit" class="btn btn-primary px-8">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</dialog>
+
+
+<dialog id="delete_modal" class="modal">
+    <div class="modal-box border-2 border-error/20">
+        <h3 class="font-black text-lg text-error">Confirm Deletion</h3>
+        <p class="py-4">Are you sure you want to delete <span id="delete_username_label" class="font-bold"></span>? This action cannot be undone.</p>
+        
+        <form id="delete_user_form" method="POST">
+            <div class="form-control bg-error/5 p-4 rounded-xl border border-error/10 mb-4">
+                <label class="label cursor-pointer justify-start gap-3">
+                    <input type="checkbox" name="delete_containers" value="true" class="checkbox checkbox-error" />
+                    <span class="label-text font-bold text-error">Delete all associated containers & stacks</span>
+                </label>
+                <p class="text-[10px] opacity-60 ml-9 leading-tight">If unchecked, services will remain running but orphaned from any user account. They can still be managed via an admin account</p>
+            </div>
+
+            <div class="modal-action">
+                <button type="button" onclick="delete_modal.close()" class="btn btn-ghost">Cancel</button>
+                <button type="submit" class="btn btn-error">Delete Permanently</button>
+            </div>
+        </form>
+    </div>
+</dialog>
+
+<script>
+    function openEditModal(id, username, fullName, containers, cpus, ram) {
+        document.getElementById('edit_user_form').action = "/admin/users/update/" + id;
+        document.getElementById('edit_username_label').innerText = username;
+        document.getElementById('edit_full_name').value = username;
+        document.getElementById('edit_max_containers').value = containers;
+        document.getElementById('edit_max_cpus').value = cpus;
+        document.getElementById('edit_max_ram').value = ram;
+        edit_user_modal.showModal();
+    }
+
+    function confirmDelete(id, username) {
+        document.getElementById('delete_user_form').action = "/admin/users/delete/" + id;
+        document.getElementById('delete_username_label').innerText = username;
+        delete_modal.showModal();
+    }
+
+    function openEditModal(id, username, fullName, containers, cpus, ram) {
+        // Set form action URL dynamically
+        document.getElementById('edit_user_form').action = "/admin/users/update/" + id;
+
+        // Fill fields
+        document.getElementById('edit_display_username').innerText = username;
+        document.getElementById('edit_username').value = username;
+        document.getElementById('edit_max_containers').value = containers;
+        document.getElementById('edit_max_cpus').value = cpus;
+        document.getElementById('edit_max_ram').value = ram;
+
+        edit_user_modal.showModal();
+    }
+</script>
+
+{% endblock %}
