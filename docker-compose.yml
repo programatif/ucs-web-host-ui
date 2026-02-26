@@ -1,0 +1,10 @@
+services:
+  flask-app:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./instance:/app/instance
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: always
