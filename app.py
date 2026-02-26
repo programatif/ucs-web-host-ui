@@ -10,7 +10,9 @@ import string
 
 app = Flask(__name__)
 app.secret_key = "drftgyhujiokpiugyft4567789ij!!#e5"
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
+basedir = os.path.abspath(os.path.dirname(__file__))
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'instance', 'app.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize Extensions
@@ -39,7 +41,7 @@ with app.app_context():
         db.session.commit()
 
 # Configuration: Point this to your existing Docker Swarm API
-API_BASE_URL = "https://swarm-controller.harrys-cv.me" 
+API_BASE_URL = "https://swarm-controller.192.168.68.52.sslip.io" 
 
 def admin_required(f):
     @wraps(f)
@@ -433,4 +435,5 @@ def proxy_mkdir(stack):
         "path": folder_name
     }))
 if __name__ == '__main__':
+
     app.run(port=8080, debug=True, host="0.0.0.0")
